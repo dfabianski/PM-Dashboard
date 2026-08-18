@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hergarten-Teamboard | Digital Neuzeit OS</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #0b0f19;
+            color: #f1f5f9;
+        }
+
+        .bg-grid-cyber {
+            background-image: 
+                linear-gradient(to right, rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            contain: layout style;
+        }
+
+        .glass-card {
+            background: rgba(17, 23, 38, 0.95);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+            contain: layout style;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(56, 189, 248, 0.4);
+            box-shadow: 0 8px 24px -4px rgba(56, 189, 248, 0.12);
+        }
+
+        .glass-modal {
+            background: rgba(15, 23, 42, 0.96);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        /* Light Theme Overrides */
+        body.light-theme {
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+        
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        body.light-theme .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-color: #cbd5e1;
+            color: #0f172a;
+            box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
+        }
+        body.light-theme .glass-card {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            color: #0f172a;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        }
+
+        body.light-theme .glass-modal {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            color: #0f172a;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+        }
+        body.light-theme .text-white {
+            color: #0f172a !important;
+        }
+        body.light-theme .text-slate-300,
+        body.light-theme .text-slate-200 {
+            color: #1e293b !important;
+        }
+        body.light-theme .text-slate-400,
+        body.light-theme .text-slate-500 {
+            color: #475569 !important;
+        }
+
+        body.light-theme .bg-slate-900,
+        body.light-theme .bg-slate-950,
+        body.light-theme .bg-indigo-950,
+        body.light-theme .bg-cyan-950 {
+            background-color: #f1f5f9 !important;
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+
+        body.light-theme input,
+        body.light-theme textarea,
+        body.light-theme select {
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            border-color: #cbd5e1 !important;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.2); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.4); }
+
+        .drag-over {
+            border-color: #38bdf8 !important;
+            background-color: rgba(56, 189, 248, 0.05) !important;
+        }
+    </style>
+
+    <!-- Firebase SDK Scripts (Compat for speed and stability) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+</head>
+<body class="text-slate-100 font-sans min-h-screen pb-16 bg-grid-cyber selection:bg-cyan-500 selection:text-black">
+
+    <canvas id="bgCanvas" class="fixed inset-0 pointer-events-none z-0 opacity-30"></canvas>
+
+    <!-- Toast Notification Overlay -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <header class="sticky top-0 z-40 glass-panel border-b border-slate-800/80 shadow-2xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                
+                <div class="flex items-center justify-between md:justify-start gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="relative group cursor-pointer" onclick="toggleTheme()" title="Design umschalten (Dark / Light)">
+                            <div class="absolute -inset-1 bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-xl blur opacity-40 group-hover:opacity-100 transition duration-300"></div>
+                            <div class="relative p-2.5 bg-slate-900 rounded-xl border border-cyan-500/30 text-cyan-400 shadow-lg transition-transform group-hover:scale-105 flex items-center justify-center">
+                                <i data-lucide="cpu" class="w-5 h-5"></i>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-white flex items-center gap-2 font-mono">
+                                    Hergarten-Teamboard
+                                    <span class="text-[10px] font-mono tabular-nums px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-semibold">v4.0 Fast</span>
+                                </h1>
+                            </div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full font-mono transition-all bg-emerald-950/80 text-emerald-400 border border-emerald-500/30" id="datenquelleBadge">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> Synchronisiert
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
+                    <div class="relative w-full sm:w-56 shrink-0">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                            <i data-lucide="search" class="w-4 h-4"></i>
+                        </span>
+                        <input type="text" id="suche" placeholder="Projekte durchsuchen..." autocomplete="off" 
+                               class="w-full pl-9 pr-3 py-2 bg-slate-900/80 border border-slate-700/80 focus:border-cyan-400 rounded-xl text-xs text-slate-100 placeholder-slate-500 transition-all outline-none focus:ring-2 focus:ring-cyan-500/20 shadow-inner"
+                               oninput="filterProjekte()">
+                    </div>
+
+                    <div class="flex items-center gap-2 w-full sm:w-auto overflow-x-auto no-scrollbar py-0.5">
+                        <button onclick="oeffneFormularModal()" class="relative group overflow-hidden bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold py-2 px-3.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shrink-0">
+                            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                            <span class="whitespace-nowrap">Projekt erfassen</span>
+                        </button>
+                        
+                        <button onclick="toggleAiModal()" class="relative bg-slate-900 hover:bg-slate-800 text-indigo-300 font-semibold py-2 px-3 rounded-xl text-xs border border-indigo-500/30 shadow-sm flex items-center justify-center gap-1.5 transition-all group shrink-0">
+                            <i data-lucide="bot" class="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform"></i>
+                            <span class="whitespace-nowrap">AI Advisor</span>
+                        </button>
+
+                        <button onclick="toggleVerlauf()" class="relative bg-slate-900 hover:bg-slate-800 text-slate-200 font-semibold py-2 px-3 rounded-xl text-xs border border-slate-700/80 shadow-sm flex items-center justify-center gap-1.5 transition-all shrink-0">
+                            <i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i>
+                            <span class="whitespace-nowrap">Verlauf</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- Initial Loading Overlay -->
+    <div id="initialLoader" class="max-w-7xl mx-auto px-4 sm:px-6 mt-20 text-center space-y-4">
+        <div class="inline-flex p-4 bg-cyan-950/60 rounded-2xl border border-cyan-500/30 text-cyan-400 animate-pulse">
+            <i data-lucide="loader-2" class="w-8 h-8 animate-spin"></i>
+        </div>
+        <p class="text-slate-400 text-xs font-mono">Teamboard & Synchro-Engine wird geladen...</p>
+    </div>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 mt-8 relative z-10 hidden" id="mainContent">
+        
+        <!-- Workspace Switcher Dropdown & Team Management -->
+        <div class="glass-panel p-3.5 rounded-2xl border border-slate-800/80 mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-lg">
+            <div class="flex items-center gap-3 w-full sm:w-auto">
+                <div class="flex items-center gap-2 shrink-0">
+                    <i data-lucide="users" class="w-4 h-4 text-cyan-400"></i>
+                    <label for="workspaceSelect" class="text-xs font-mono font-bold text-slate-300 uppercase tracking-wider">
+                        Aktives Team:
+                    </label>
+                </div>
+                <div class="relative flex-1 sm:w-80">
+                    <div class="flex items-center gap-2 bg-slate-900 border border-cyan-500/40 rounded-xl px-3 py-2 text-xs font-mono font-bold text-cyan-300 shadow-sm hover:border-cyan-400 transition-colors">
+                        <i data-lucide="layers" class="w-4 h-4 text-cyan-400 shrink-0"></i>
+                        <select id="workspaceSelect" onchange="handleWorkspaceSelectChange(this.value)" 
+                                class="w-full bg-transparent text-cyan-300 font-mono font-bold text-xs outline-none cursor-pointer pr-2">
+                            <!-- Dynamically filled with teams -->
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 w-full sm:w-auto justify-end border-t sm:border-t-0 border-slate-800 pt-2 sm:pt-0">
+                <button onclick="oeffneTeamModal()" class="w-full sm:w-auto px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 font-bold rounded-xl text-xs border border-slate-700/80 flex items-center justify-center gap-2 transition-all shadow-sm">
+                    <i data-lucide="settings-2" class="w-4 h-4 text-cyan-400"></i>
+                    <span>Team verwalten / Wechseln</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Metrics Bar -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="glass-panel p-4 rounded-2xl border border-slate-800/80 hover:border-cyan-500/40 transition-all flex items-center gap-3.5 shadow-lg">
+                <div class="p-3 bg-cyan-950/80 rounded-xl text-cyan-400 border border-cyan-500/30">
+                    <i data-lucide="layers" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <div class="text-2xl font-extrabold tracking-tight font-mono tabular-nums text-white" id="stat-gesamt">0</div>
+                    <div class="text-[11px] text-slate-400 font-medium">Offene Aufgaben</div>
+                </div>
+            </div>
+
+            <div class="glass-panel p-4 rounded-2xl border border-slate-800/80 hover:border-blue-500/40 transition-all flex items-center gap-3.5 shadow-lg">
+                <div class="p-3 bg-blue-950/80 rounded-xl text-blue-400 border border-blue-500/30">
+                    <i data-lucide="git-pull-request" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <div class="text-2xl font-extrabold tracking-tight font-mono tabular-nums text-blue-400" id="stat-arbeit">0</div>
+                    <div class="text-[11px] text-slate-400 font-medium">In Umsetzung</div>
+                </div>
+            </div>
+
+            <div class="glass-panel p-4 rounded-2xl border border-slate-800/80 hover:border-amber-500/40 transition-all flex items-center gap-3.5 shadow-lg">
+                <div class="p-3 bg-amber-950/80 rounded-xl text-amber-400 border border-amber-500/30">
+                    <i data-lucide="flask-conical" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <div class="text-2xl font-extrabold tracking-tight font-mono tabular-nums text-amber-400" id="stat-test">0</div>
+                    <div class="text-[11px] text-slate-400 font-medium">Zur Freigabe</div>
+                </div>
+            </div>
+
+            <div class="glass-panel p-4 rounded-2xl border border-slate-800/80 hover:border-emerald-500/40 transition-all flex items-center gap-3.5 shadow-lg">
+                <div class="p-3 bg-emerald-950/80 rounded-xl text-emerald-400 border border-emerald-500/30">
+                    <i data-lucide="check-circle2" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <div class="text-2xl font-extrabold tracking-tight font-mono tabular-nums text-emerald-400" id="stat-fertig">0</div>
+                    <div class="text-[11px] text-slate-400 font-medium">Abgeschlossen</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kanban Spalten -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
+            
+            <!-- Spalte: Neu -->
+            <div class="glass-panel rounded-2xl p-4 border border-slate-800/80 transition-all shadow-xl" id="col-neu">
+                <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+                    <span class="font-bold text-slate-300 flex items-center gap-2 text-xs uppercase tracking-wider font-mono">
+                        <span class="w-2.5 h-2.5 rounded-full bg-slate-400 shadow-sm"></span> Neu erfasst
+                    </span>
+                    <span class="bg-slate-800 text-slate-300 text-xs font-mono tabular-nums font-bold px-2 py-0.5 rounded-full border border-slate-700" id="zaehler-neu">0</span>
+                </div>
+                <div class="space-y-3 min-h-[400px] rounded-xl p-1"
+                     ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondrop="drop(event, 'neu')">
+                    <div class="karten-liste space-y-3" id="liste-neu"></div>
+                </div>
+            </div>
+
+            <!-- Spalte: In Arbeit -->
+            <div class="glass-panel rounded-2xl p-4 border border-slate-800/80 transition-all shadow-xl" id="col-arbeit">
+                <div class="flex items-center justify-between pb-3 mb-4 border-b border-cyan-500/50">
+                    <span class="font-bold text-cyan-300 flex items-center gap-2 text-xs uppercase tracking-wider font-mono">
+                        <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span> In Arbeit
+                    </span>
+                    <span class="bg-cyan-950 text-cyan-300 text-xs font-mono tabular-nums font-bold px-2 py-0.5 rounded-full border border-cyan-500/40" id="zaehler-arbeit">0</span>
+                </div>
+                <div class="space-y-3 min-h-[400px] rounded-xl p-1"
+                     ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondrop="drop(event, 'arbeit')">
+                    <div class="karten-liste space-y-3" id="liste-arbeit"></div>
+                </div>
+            </div>
+
+            <!-- Spalte: Im Test -->
+            <div class="glass-panel rounded-2xl p-4 border border-slate-800/80 transition-all shadow-xl" id="col-test">
+                <div class="flex items-center justify-between pb-3 mb-4 border-b border-amber-500/50">
+                    <span class="font-bold text-amber-300 flex items-center gap-2 text-xs uppercase tracking-wider font-mono">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Zur Freigabe
+                    </span>
+                    <span class="bg-amber-950 text-amber-300 text-xs font-mono tabular-nums font-bold px-2 py-0.5 rounded-full border border-amber-500/40" id="zaehler-test">0</span>
+                </div>
+                <div class="space-y-3 min-h-[400px] rounded-xl p-1"
+                     ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondrop="drop(event, 'test')">
+                    <div class="karten-liste space-y-3" id="liste-test"></div>
+                </div>
+            </div>
+
+            <!-- Spalte: Fertig -->
+            <div class="glass-panel rounded-2xl p-4 border border-slate-800/80 transition-all shadow-xl" id="col-fertig">
+                <div class="flex items-center justify-between pb-3 mb-4 border-b border-emerald-500/50">
+                    <span class="font-bold text-emerald-300 flex items-center gap-2 text-xs uppercase tracking-wider font-mono">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span> Fertig
+                    </span>
+                    <span class="bg-emerald-950 text-emerald-300 text-xs font-mono tabular-nums font-bold px-2 py-0.5 rounded-full border border-emerald-500/40" id="zaehler-fertig">0</span>
+                </div>
+                <div class="space-y-3 min-h-[400px] rounded-xl p-1"
+                     ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)" ondrop="drop(event, 'fertig')">
+                    <div class="karten-liste space-y-3" id="liste-fertig"></div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    
+    <!-- Team Management Modal -->
+    <div id="teamModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 hidden p-4">
+        <div class="glass-modal rounded-2xl p-6 w-full max-w-lg transform transition-all duration-300 shadow-2xl border border-indigo-500/40 space-y-5">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-2 bg-indigo-950 rounded-xl text-indigo-400 border border-indigo-500/30">
+                        <i data-lucide="users" class="w-5 h-5"></i>
+                    </div>
+                    <h2 class="text-base font-bold text-white font-mono uppercase tracking-wider">Team Verwaltung</h2>
+                </div>
+                <button onclick="schließeTeamModal()" class="p-1.5 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-all">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-2">
+                <label class="block text-xs font-mono uppercase text-slate-300 font-bold">Verfügbare Teams</label>
+                <div id="teamMitgliedschaftenListe" class="space-y-2 max-h-48 overflow-y-auto"></div>
+            </div>
+
+            <!-- Join Team -->
+            <div class="space-y-2 border-t border-slate-800 pt-4">
+                <label class="block text-xs font-mono uppercase text-slate-300 font-bold">Bestehendem Team beitreten</label>
+                <div class="flex gap-2">
+                    <input type="text" id="joinTeamCodeInput" placeholder="Team-Code eingeben" class="flex-1 px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-mono uppercase outline-none focus:border-cyan-400">
+                    <button onclick="treteTeamBei()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded-xl text-xs font-mono transition-colors">
+                        Beitreten
+                    </button>
+                </div>
+            </div>
+
+            <!-- Create New Team -->
+            <div class="space-y-2 border-t border-slate-800 pt-4">
+                <label class="block text-xs font-mono uppercase text-slate-300 font-bold">Neues Team erstellen</label>
+                <div class="flex gap-2">
+                    <input type="text" id="createTeamNameInput" placeholder="z. B. Marketing / Sales" class="flex-1 px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white outline-none focus:border-cyan-400">
+                    <button onclick="erstelleTeam()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs font-mono transition-colors">
+                        Erstellen
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2 border-t border-slate-800">
+                <button onclick="schließeTeamModal()" class="px-4 py-2 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-semibold transition-all">Schließen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detailModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 hidden p-4">
+        <div class="glass-modal rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-all duration-300 shadow-2xl border border-cyan-500/30">
+            <div class="flex items-start justify-between border-b border-slate-800 pb-4 mb-4">
+                <div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-cyan-950 text-cyan-300 border border-cyan-500/30" id="detailKategorie">Digital</span>
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider" id="detailPrioBadge">Prio</span>
+                    </div>
+                    <h2 class="text-xl font-extrabold text-white leading-tight font-mono" id="detailTitel">Projekt Titel</h2>
+                </div>
+                <button onclick="schließeDetailModal()" class="p-2 hover:bg-slate-800/80 rounded-xl text-slate-400 hover:text-white transition-all">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-5">
+                <div>
+                    <h4 class="text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5 font-bold">Spezifikation & Zielstellung</h4>
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 text-xs text-slate-300 leading-relaxed font-sans whitespace-pre-line" id="detailBeschreibung">
+                        Keine Beschreibung.
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3">
+                        <span class="block text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold mb-1">Verantwortlich</span>
+                        <span class="text-xs font-medium text-slate-200" id="detailMitarbeiter">-</span>
+                    </div>
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3">
+                        <span class="block text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold mb-1">Fälligkeit</span>
+                        <span class="text-xs font-medium text-slate-200" id="detailDeadline">Keine Deadline</span>
+                    </div>
+                </div>
+
+                <!-- Checkliste -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">Projekt-Checkliste</h4>
+                        <span class="text-[11px] font-mono text-cyan-400" id="detailChecklisteStats">0/0</span>
+                    </div>
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 space-y-2 max-h-48 overflow-y-auto" id="detailUnterpunkteList"></div>
+                </div>
+
+                <!-- Kommentare -->
+                <div class="border-t border-slate-800 pt-4">
+                    <h4 class="text-xs font-mono uppercase tracking-wider text-slate-300 font-bold mb-3 flex items-center gap-2">
+                        <i data-lucide="message-square" class="w-4 h-4 text-cyan-400"></i> Kommentare & Notizen
+                    </h4>
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 space-y-2 max-h-44 overflow-y-auto mb-3" id="detailCommentsList"></div>
+                    <div class="flex gap-2">
+                        <input type="text" id="newCommentInput" placeholder="Kommentar schreiben..." class="flex-1 px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white outline-none focus:border-cyan-400">
+                        <button onclick="addComment()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded-xl text-xs font-mono transition-colors">Senden</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center border-t border-slate-800 pt-5 mt-6">
+                <div class="flex items-center gap-2">
+                    <button onclick="bearbeiteProjektVomDetail()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition-all flex items-center gap-1.5">
+                        <i data-lucide="edit-3" class="w-4 h-4"></i> Bearbeiten
+                    </button>
+                    <button onclick="loescheProjektVomDetail()" class="px-3 py-2 rounded-xl bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-500/40 text-xs font-bold transition-all flex items-center gap-1.5">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i> Löschen
+                    </button>
+                </div>
+                <button onclick="schließeDetailModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-all">Schließen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Modal (Create / Edit) -->
+    <div id="formularModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 hidden p-4">
+        <section class="glass-modal rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-all duration-300 shadow-2xl border border-slate-700/80">
+            <div class="flex items-center justify-between mb-5 border-b border-slate-800 pb-4">
+                <h2 class="text-base font-bold text-white uppercase tracking-wider font-mono" id="formularTitel">Neues Projekt erfassen</h2>
+                <button onclick="schließeFormularModal()" class="p-2 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-all">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <form id="projektForm" onsubmit="speichereProjekt(event)" class="space-y-4">
+                <input type="hidden" id="editId">
+                
+                <div>
+                    <label for="titel" class="block text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1.5">Projektname</label>
+                    <input type="text" id="titel" placeholder="z. B. Prozessoptimierung Digitalisierung" required class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-xl text-xs text-white outline-none">
+                </div>
+
+                <div>
+                    <label for="beschreibung" class="block text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1.5">Beschreibung</label>
+                    <textarea id="beschreibung" placeholder="Ziele & Details..." rows="3" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-xl text-xs text-white outline-none resize-none"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="mitarbeiter" class="block text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1.5">Verantwortlich</label>
+                        <input type="text" id="mitarbeiter" placeholder="z. B. Dominik Fabianski" required class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-xl text-xs text-white outline-none">
+                    </div>
+                    <div>
+                        <label for="deadline" class="block text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1.5">Fälligkeitsdatum</label>
+                        <input type="date" id="deadline" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-xl text-xs text-white outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="kategorie" class="block text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1.5">Kategorie</label>
+                        <select id="kategorie" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-xl text-xs text-white outline-none">
+                            <option value="Digital">Digital</option>
+                            <option value="Personal / HR">Personal / HR</option>
+                            <option value="Organisation">Organisation</option>
+                            <option value="Infrastruktur">Infrastruktur</option>
+                            <option value="Vertrieb">Vertrieb</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="prio" class="block text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1.5">Priorität</label>
+                        <select id="prio" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 focus:border-cyan-400 rounded-xl text-xs text-white outline-none">
+                            <option value="prio-niedrig">Niedrig (Grün)</option>
+                            <option value="prio-mittel" selected>Mittel (Gelb)</option>
+                            <option value="prio-hoch">Hoch (Rot)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
+                    <button type="button" onclick="schließeFormularModal()" class="px-4 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-xs font-semibold">Abbrechen</button>
+                    <button type="submit" class="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl text-xs font-mono shadow-md">Speichern</button>
+                </div>
+            </form>
+        </section>
+    </div>
+
+    <script>
+        // Global Application State
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'hergarten-teamboard-app';
+        let db, auth;
+        let currentUser = null;
+        let currentTeamId = null;
+        let teams = [];
+        let allProjects = []; // Memory cache
+        let activeSnapshotUnsubscribe = null;
+        let currentDetailProject = null;
+        let isLocalMode = false;
+
+        // Default local sample data when running without Firebase permissions
+        const DEFAULT_LOCAL_TEAMS = [
+            { id: 'team-main', name: "Hergarten Hauptteam", code: "HERGARTEN-MAIN" }
+        ];
+
+        const DEFAULT_LOCAL_PROJECTS = [
+            {
+                id: 'proj-1',
+                titel: 'Prozessoptimierung Digitalisierung',
+                beschreibung: 'Analyse und Umstellung papierbasierter Workflows auf digitale Teamboards.',
+                mitarbeiter: 'Dominik Fabianski',
+                deadline: '2026-09-15',
+                kategorie: 'Digital',
+                prio: 'prio-hoch',
+                status: 'arbeit',
+                teamId: 'team-main',
+                unterpunkte: [
+                    { titel: 'Ist-Analyse erstellen', done: true },
+                    { titel: 'Teamboard v4 testen', done: true },
+                    { titel: 'Team-Schulung organisieren', done: false }
+                ],
+                comments: [
+                    { author: 'Team', time: '10:30', text: 'Erste Testphase erfolgreich verlaufen.' }
+                ]
+            },
+            {
+                id: 'proj-2',
+                titel: 'Erneuerung IT-Infrastruktur',
+                beschreibung: 'Upgrade der lokalen Serverlandschaft und Cloud-Anbindung.',
+                mitarbeiter: 'IT Support',
+                deadline: '2026-10-01',
+                kategorie: 'Infrastruktur',
+                prio: 'prio-mittel',
+                status: 'neu',
+                teamId: 'team-main',
+                unterpunkte: [],
+                comments: []
+            },
+            {
+                id: 'proj-3',
+                titel: 'Mitarbeiter-Onboarding Portal',
+                beschreibung: 'Interne Wissensdatenbank für neue Teammitglieder.',
+                mitarbeiter: 'HR Team',
+                deadline: '2026-08-30',
+                kategorie: 'Personal / HR',
+                prio: 'prio-niedrig',
+                status: 'test',
+                teamId: 'team-main',
+                unterpunkte: [
+                    { titel: 'Dokumente hochladen', done: true }
+                ],
+                comments: []
+            }
+        ];
+
+        function loadLocalData() {
+            try {
+                const storedTeams = localStorage.getItem('hergarten_teams');
+                teams = storedTeams ? JSON.parse(storedTeams) : DEFAULT_LOCAL_TEAMS;
+
+                const storedProjects = localStorage.getItem('hergarten_projects');
+                allProjects = storedProjects ? JSON.parse(storedProjects) : DEFAULT_LOCAL_PROJECTS;
+
+                if (!teams || teams.length === 0) {
+                    teams = DEFAULT_LOCAL_TEAMS;
+                }
+            } catch (e) {
+                console.warn("LocalStorage access error, using defaults:", e);
+                teams = DEFAULT_LOCAL_TEAMS;
+                allProjects = DEFAULT_LOCAL_PROJECTS;
+            }
+        }
+
+        function saveLocalData() {
+            try {
+                localStorage.setItem('hergarten_teams', JSON.stringify(teams));
+                localStorage.setItem('hergarten_projects', JSON.stringify(allProjects));
+            } catch (e) {
+                console.error("Error saving to localStorage:", e);
+            }
+        }
+
+        function enableLocalMode() {
+            isLocalMode = true;
+            if (activeSnapshotUnsubscribe) {
+                try { activeSnapshotUnsubscribe(); } catch (e) {}
+                activeSnapshotUnsubscribe = null;
+            }
+
+            loadLocalData();
+
+            if (!currentTeamId || !teams.some(t => t.id === currentTeamId)) {
+                currentTeamId = teams[0].id;
+            }
+
+            // Update status badge in UI
+            const badge = document.getElementById('datenquelleBadge');
+            if (badge) {
+                badge.className = "inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full font-mono transition-all bg-amber-950/80 text-amber-400 border border-amber-500/30";
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Lokaler Modus`;
+            }
+
+            // Hide loader & display board UI
+            const loader = document.getElementById('initialLoader');
+            if (loader) loader.classList.add('hidden');
+            const main = document.getElementById('mainContent');
+            if (main) main.classList.remove('hidden');
+
+            renderTeamSelector();
+            renderBoard();
+        }
+
+        function initFirebase() {
+            try {
+                const firebaseConfig = typeof __firebase_config !== 'undefined' 
+                    ? JSON.parse(__firebase_config)
+                    : null;
+
+                if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey === 'demo-key') {
+                    console.log("No valid Firebase credentials available. Starting in Local Storage Mode.");
+                    enableLocalMode();
+                    return;
+                }
+
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                db = firebase.firestore();
+                auth = firebase.auth();
+
+                auth.onAuthStateChanged(async (user) => {
+                    if (user) {
+                        currentUser = user;
+                        await setupTeamsAndProjects();
+                    } else {
+                        try {
+                            const cred = await auth.signInAnonymously();
+                            currentUser = cred.user;
+                            await setupTeamsAndProjects();
+                        } catch (e) {
+                            console.warn("Anonymous auth failed, falling back to local mode:", e);
+                            enableLocalMode();
+                        }
+                    }
+                });
+            } catch (err) {
+                console.warn("Firebase init error, switching to local mode:", err);
+                enableLocalMode();
+            }
+        }
+
+        async function setupTeamsAndProjects() {
+            if (isLocalMode) return;
+            if (!currentUser) return;
+
+            const teamsRef = db.collection('artifacts').doc(appId).collection('teams');
+            
+            try {
+                const snapshot = await teamsRef.get();
+                teams = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                if (teams.length === 0) {
+                    const defaultTeam = {
+                        name: "Hergarten Hauptteam",
+                        code: "HERGARTEN-MAIN",
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+                    const newDoc = await teamsRef.add(defaultTeam);
+                    teams.push({ id: newDoc.id, ...defaultTeam });
+                }
+
+                currentTeamId = teams[0].id;
+                renderTeamSelector();
+
+                const loader = document.getElementById('initialLoader');
+                if (loader) loader.classList.add('hidden');
+                const main = document.getElementById('mainContent');
+                if (main) main.classList.remove('hidden');
+
+                subscribeToProjects();
+
+            } catch (err) {
+                console.warn("Firestore teams permission error, switching to local mode:", err);
+                enableLocalMode();
+            }
+        }
+
+        function subscribeToProjects() {
+            if (isLocalMode) return;
+            if (activeSnapshotUnsubscribe) {
+                activeSnapshotUnsubscribe();
+            }
+
+            const projectsRef = db.collection('artifacts').doc(appId).collection('projects');
+
+            activeSnapshotUnsubscribe = projectsRef.onSnapshot((snapshot) => {
+                allProjects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                    .filter(p => p.teamId === currentTeamId);
+
+                renderBoard();
+            }, (error) => {
+                console.warn("Snapshot permission error, switching to local mode:", error);
+                enableLocalMode();
+            });
+        }
+
+        function renderTeamSelector() {
+            const select = document.getElementById('workspaceSelect');
+            if (select) {
+                select.innerHTML = teams.map(t => `<option value="${t.id}" ${t.id === currentTeamId ? 'selected' : ''}>👥 ${t.name} (${t.code})</option>`).join('');
+            }
+            
+            const teamListModal = document.getElementById('teamMitgliedschaftenListe');
+            if (teamListModal) {
+                teamListModal.innerHTML = teams.map(t => `
+                    <div class="flex items-center justify-between p-3 bg-slate-900 border border-slate-800 rounded-xl text-xs font-mono">
+                        <div>
+                            <div class="font-bold text-white">${t.name}</div>
+                            <div class="text-[10px] text-cyan-400">Code: ${t.code}</div>
+                        </div>
+                        ${t.id === currentTeamId ? '<span class="text-[10px] bg-cyan-950 text-cyan-300 px-2 py-0.5 rounded-full border border-cyan-500/40">Aktiv</span>' : ''}
+                    </div>
+                `).join('');
+            }
+        }
+
+        function handleWorkspaceSelectChange(teamId) {
+            currentTeamId = teamId;
+            renderTeamSelector();
+            if (isLocalMode) {
+                renderBoard();
+            } else {
+                subscribeToProjects();
+            }
+            showToast("Team gewechselt", "info");
+        }
+
+        function renderBoard() {
+            const searchQuery = document.getElementById('suche').value.toLowerCase();
+
+            const filteredProjects = allProjects.filter(p => {
+                return (p.titel || '').toLowerCase().includes(searchQuery) ||
+                       (p.mitarbeiter || '').toLowerCase().includes(searchQuery) ||
+                       (p.kategorie || '').toLowerCase().includes(searchQuery);
+            });
+
+            const colNeu = document.getElementById('liste-neu');
+            const colArbeit = document.getElementById('liste-arbeit');
+            const colTest = document.getElementById('liste-test');
+            const colFertig = document.getElementById('liste-fertig');
+
+            colNeu.innerHTML = '';
+            colArbeit.innerHTML = '';
+            colTest.innerHTML = '';
+            colFertig.innerHTML = '';
+
+            let counts = { neu: 0, arbeit: 0, test: 0, fertig: 0 };
+
+            filteredProjects.forEach(p => {
+                const status = p.status || 'neu';
+                counts[status] = (counts[status] || 0) + 1;
+
+                const cardHtml = createCardHtml(p);
+
+                if (status === 'neu') colNeu.insertAdjacentHTML('beforeend', cardHtml);
+                else if (status === 'arbeit') colArbeit.insertAdjacentHTML('beforeend', cardHtml);
+                else if (status === 'test') colTest.insertAdjacentHTML('beforeend', cardHtml);
+                else if (status === 'fertig') colFertig.insertAdjacentHTML('beforeend', cardHtml);
+            });
+
+            // Update stats
+            document.getElementById('stat-gesamt').innerText = filteredProjects.length;
+            document.getElementById('stat-arbeit').innerText = counts.arbeit;
+            document.getElementById('stat-test').innerText = counts.test;
+            document.getElementById('stat-fertig').innerText = counts.fertig;
+
+            document.getElementById('zaehler-neu').innerText = counts.neu;
+            document.getElementById('zaehler-arbeit').innerText = counts.arbeit;
+            document.getElementById('zaehler-test').innerText = counts.test;
+            document.getElementById('zaehler-fertig').innerText = counts.fertig;
+
+            lucide.createIcons();
+        }
+
+        function createCardHtml(p) {
+            const prioClass = p.prio === 'prio-hoch' ? 'border-l-rose-500' : p.prio === 'prio-mittel' ? 'border-l-amber-400' : 'border-l-emerald-400';
+            const prioLabel = p.prio === 'prio-hoch' ? 'Hoch' : p.prio === 'prio-mittel' ? 'Mittel' : 'Niedrig';
+            const prioBadgeClass = p.prio === 'prio-hoch' ? 'bg-rose-950 text-rose-300 border-rose-500/40' : p.prio === 'prio-mittel' ? 'bg-amber-950 text-amber-300 border-amber-500/40' : 'bg-emerald-950 text-emerald-300 border-emerald-500/40';
+
+            const unterpunkte = p.unterpunkte || [];
+            const doneItems = unterpunkte.filter(u => u.done).length;
+            const totalItems = unterpunkte.length;
+
+            return `
+                <div class="glass-card rounded-xl p-3.5 border-l-4 ${prioClass} cursor-pointer space-y-2.5" 
+                     draggable="true" ondragstart="dragStart(event, '${p.id}')" onclick="oeffneDetailModal('${p.id}')">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-slate-300 font-semibold">${p.kategorie || 'Digital'}</span>
+                        <span class="text-[10px] font-mono px-2 py-0.5 rounded-full border ${prioBadgeClass}">${prioLabel}</span>
+                    </div>
+                    <h3 class="text-xs font-bold text-white font-mono leading-snug line-clamp-2">${p.titel}</h3>
+                    ${p.beschreibung ? `<p class="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">${p.beschreibung}</p>` : ''}
+                    
+                    ${totalItems > 0 ? `
+                        <div class="flex items-center gap-2 pt-1">
+                            <div class="flex-1 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                <div class="bg-cyan-400 h-1.5 rounded-full" style="width: ${(doneItems/totalItems)*100}%"></div>
+                            </div>
+                            <span class="text-[10px] font-mono text-slate-400">${doneItems}/${totalItems}</span>
+                        </div>
+                    ` : ''}
+
+                    <div class="flex items-center justify-between border-t border-slate-800/80 pt-2 text-[10px] font-mono text-slate-400">
+                        <span class="flex items-center gap-1"><i data-lucide="user" class="w-3 h-3 text-cyan-400"></i> ${p.mitarbeiter || '-'}</span>
+                        ${p.deadline ? `<span class="flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3 text-amber-400"></i> ${p.deadline}</span>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        let draggedProjectId = null;
+
+        function dragStart(e, id) {
+            draggedProjectId = id;
+            e.dataTransfer.setData('text/plain', id);
+        }
+
+        function allowDrop(e) {
+            e.preventDefault();
+        }
+
+        function dragEnter(e) {
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function dragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        async function drop(e, targetStatus) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+
+            if (!draggedProjectId) return;
+
+            const proj = allProjects.find(p => p.id === draggedProjectId);
+            if (proj && proj.status !== targetStatus) {
+                proj.status = targetStatus;
+                renderBoard();
+
+                if (isLocalMode) {
+                    saveLocalData();
+                    showToast("Status aktualisiert (Lokal)", "success");
+                    return;
+                }
+
+                try {
+                    await db.collection('artifacts').doc(appId).collection('projects').doc(draggedProjectId).update({
+                        status: targetStatus,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    showToast("Status aktualisiert", "success");
+                } catch (err) {
+                    console.warn("Error updating status in Firebase, saving locally:", err);
+                    saveLocalData();
+                    showToast("Status lokal gespeichert", "info");
+                }
+            }
+        }
+
+        function filterProjekte() {
+            renderBoard();
+        }
+
+        function oeffneFormularModal(editId = null) {
+            const form = document.getElementById('projektForm');
+            form.reset();
+            document.getElementById('editId').value = '';
+            document.getElementById('formularTitel').innerText = "Neues Projekt erfassen";
+
+            if (editId) {
+                const proj = allProjects.find(p => p.id === editId);
+                if (proj) {
+                    document.getElementById('editId').value = proj.id;
+                    document.getElementById('titel').value = proj.titel || '';
+                    document.getElementById('beschreibung').value = proj.beschreibung || '';
+                    document.getElementById('mitarbeiter').value = proj.mitarbeiter || '';
+                    document.getElementById('deadline').value = proj.deadline || '';
+                    document.getElementById('kategorie').value = proj.kategorie || 'Digital';
+                    document.getElementById('prio').value = proj.prio || 'prio-mittel';
+                    document.getElementById('formularTitel').innerText = "Projekt bearbeiten";
+                }
+            }
+
+            document.getElementById('formularModal').classList.remove('hidden');
+        }
+
+        function schließeFormularModal() {
+            document.getElementById('formularModal').classList.add('hidden');
+        }
+
+        async function speichereProjekt(e) {
+            e.preventDefault();
+            
+            const editId = document.getElementById('editId').value;
+            const titel = document.getElementById('titel').value;
+            const beschreibung = document.getElementById('beschreibung').value;
+            const mitarbeiter = document.getElementById('mitarbeiter').value;
+            const deadline = document.getElementById('deadline').value;
+            const kategorie = document.getElementById('kategorie').value;
+            const prio = document.getElementById('prio').value;
+
+            if (isLocalMode) {
+                if (editId) {
+                    const idx = allProjects.findIndex(p => p.id === editId);
+                    if (idx !== -1) {
+                        allProjects[idx] = {
+                            ...allProjects[idx],
+                            titel, beschreibung, mitarbeiter, deadline, kategorie, prio,
+                            updatedAt: new Date().toISOString()
+                        };
+                    }
+                } else {
+                    const newProj = {
+                        id: 'proj_' + Date.now(),
+                        titel, beschreibung, mitarbeiter, deadline, kategorie, prio,
+                        status: 'neu',
+                        teamId: currentTeamId,
+                        unterpunkte: [],
+                        comments: [],
+                        createdAt: new Date().toISOString()
+                    };
+                    allProjects.push(newProj);
+                }
+                saveLocalData();
+                renderBoard();
+                schließeFormularModal();
+                showToast(editId ? "Projekt lokal aktualisiert" : "Neues Projekt lokal erfasst", "success");
+                return;
+            }
+
+            const projData = {
+                titel,
+                beschreibung,
+                mitarbeiter,
+                deadline,
+                kategorie,
+                prio,
+                teamId: currentTeamId,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            const projectsRef = db.collection('artifacts').doc(appId).collection('projects');
+
+            try {
+                if (editId) {
+                    await projectsRef.doc(editId).update(projData);
+                    showToast("Projekt aktualisiert", "success");
+                } else {
+                    projData.status = 'neu';
+                    projData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                    projData.unterpunkte = [];
+                    projData.comments = [];
+                    await projectsRef.add(projData);
+                    showToast("Neues Projekt erfasst", "success");
+                }
+                schließeFormularModal();
+            } catch (err) {
+                console.warn("Error saving project to Firebase, falling back to local mode:", err);
+                enableLocalMode();
+            }
+        }
+
+        function oeffneDetailModal(id) {
+            currentDetailProject = allProjects.find(p => p.id === id);
+            if (!currentDetailProject) return;
+
+            document.getElementById('detailTitel').innerText = currentDetailProject.titel || '';
+            document.getElementById('detailKategorie').innerText = currentDetailProject.kategorie || 'Digital';
+            document.getElementById('detailBeschreibung').innerText = currentDetailProject.beschreibung || 'Keine Beschreibung vorhanden.';
+            document.getElementById('detailMitarbeiter').innerText = currentDetailProject.mitarbeiter || '-';
+            document.getElementById('detailDeadline').innerText = currentDetailProject.deadline || 'Keine Deadline';
+
+            const prioBadge = document.getElementById('detailPrioBadge');
+            prioBadge.innerText = currentDetailProject.prio === 'prio-hoch' ? 'Hoch' : currentDetailProject.prio === 'prio-mittel' ? 'Mittel' : 'Niedrig';
+            prioBadge.className = `px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider ${
+                currentDetailProject.prio === 'prio-hoch' ? 'bg-rose-950 text-rose-300 border border-rose-500/40' :
+                currentDetailProject.prio === 'prio-mittel' ? 'bg-amber-950 text-amber-300 border border-amber-500/40' :
+                'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
+            }`;
+
+            renderDetailSubitems();
+            renderDetailComments();
+
+            document.getElementById('detailModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function schließeDetailModal() {
+            document.getElementById('detailModal').classList.add('hidden');
+            currentDetailProject = null;
+        }
+
+        function renderDetailSubitems() {
+            if (!currentDetailProject) return;
+            const container = document.getElementById('detailUnterpunkteList');
+            const items = currentDetailProject.unterpunkte || [];
+
+            document.getElementById('detailChecklisteStats').innerText = `${items.filter(i => i.done).length}/${items.length}`;
+
+            if (items.length === 0) {
+                container.innerHTML = `<p class="text-[11px] text-slate-500 font-mono">Keine Unterpunkte vorhanden.</p>`;
+                return;
+            }
+
+            container.innerHTML = items.map((item, idx) => `
+                <div class="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800 text-xs">
+                    <label class="flex items-center gap-2 cursor-pointer text-slate-200 ${item.done ? 'line-through text-slate-500' : ''}">
+                        <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleSubitem(${idx})" class="rounded border-slate-700 text-cyan-500 focus:ring-0">
+                        ${item.titel}
+                    </label>
+                </div>
+            `).join('');
+        }
+
+        async function toggleSubitem(idx) {
+            if (!currentDetailProject) return;
+            const items = currentDetailProject.unterpunkte || [];
+            if (items[idx]) {
+                items[idx].done = !items[idx].done;
+                renderDetailSubitems();
+
+                if (isLocalMode) {
+                    saveLocalData();
+                    renderBoard();
+                    return;
+                }
+
+                try {
+                    await db.collection('artifacts').doc(appId).collection('projects').doc(currentDetailProject.id).update({
+                        unterpunkte: items
+                    });
+                } catch (e) {
+                    saveLocalData();
+                }
+            }
+        }
+
+        function renderDetailComments() {
+            if (!currentDetailProject) return;
+            const container = document.getElementById('detailCommentsList');
+            const comments = currentDetailProject.comments || [];
+
+            if (comments.length === 0) {
+                container.innerHTML = `<p class="text-[11px] text-slate-500 font-mono">Keine Kommentare vorhanden.</p>`;
+                return;
+            }
+
+            container.innerHTML = comments.map(c => `
+                <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1">
+                    <div class="flex items-center justify-between text-[10px] font-mono text-cyan-400">
+                        <span>${c.author || 'Teammitglied'}</span>
+                        <span class="text-slate-500">${c.time || ''}</span>
+                    </div>
+                    <p class="text-slate-300 leading-relaxed">${c.text}</p>
+                </div>
+            `).join('');
+        }
+
+        async function addComment() {
+            const input = document.getElementById('newCommentInput');
+            const text = input.value.trim();
+            if (!text || !currentDetailProject) return;
+
+            const comments = currentDetailProject.comments || [];
+            const newComment = {
+                text,
+                author: "Mitarbeiter",
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            comments.push(newComment);
+            input.value = '';
+
+            renderDetailComments();
+
+            if (isLocalMode) {
+                saveLocalData();
+                return;
+            }
+
+            try {
+                await db.collection('artifacts').doc(appId).collection('projects').doc(currentDetailProject.id).update({
+                    comments
+                });
+            } catch (e) {
+                saveLocalData();
+            }
+        }
+
+        function bearbeiteProjektVomDetail() {
+            if (!currentDetailProject) return;
+            const id = currentDetailProject.id;
+            schließeDetailModal();
+            oeffneFormularModal(id);
+        }
+
+        async function loescheProjektVomDetail() {
+            if (!currentDetailProject) return;
+            const id = currentDetailProject.id;
+            schließeDetailModal();
+
+            if (isLocalMode) {
+                allProjects = allProjects.filter(p => p.id !== id);
+                saveLocalData();
+                renderBoard();
+                showToast("Projekt gelöscht", "info");
+                return;
+            }
+
+            try {
+                await db.collection('artifacts').doc(appId).collection('projects').doc(id).delete();
+                showToast("Projekt gelöscht", "info");
+            } catch (err) {
+                console.warn("Delete error, executing locally:", err);
+                allProjects = allProjects.filter(p => p.id !== id);
+                saveLocalData();
+                renderBoard();
+            }
+        }
+
+        // Teams Modal Logic
+        function oeffneTeamModal() {
+            document.getElementById('teamModal').classList.remove('hidden');
+        }
+
+        function schließeTeamModal() {
+            document.getElementById('teamModal').classList.add('hidden');
+        }
+
+        async function erstelleTeam() {
+            const input = document.getElementById('createTeamNameInput');
+            const name = input.value.trim();
+            if (!name) return;
+
+            const code = 'TEAM-' + Math.floor(1000 + Math.random() * 9000);
+
+            if (isLocalMode) {
+                const newTeam = {
+                    id: 'team_' + Date.now(),
+                    name,
+                    code
+                };
+                teams.push(newTeam);
+                saveLocalData();
+                input.value = '';
+                handleWorkspaceSelectChange(newTeam.id);
+                showToast(`Neues Team "${name}" erstellt (Lokal)`, "success");
+                return;
+            }
+
+            const newTeam = {
+                name,
+                code,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                const docRef = await db.collection('artifacts').doc(appId).collection('teams').add(newTeam);
+                teams.push({ id: docRef.id, ...newTeam });
+                input.value = '';
+                handleWorkspaceSelectChange(docRef.id);
+                showToast(`Neues Team "${name}" erstellt`, "success");
+            } catch (err) {
+                console.warn("Error creating team in Firebase, creating locally:", err);
+                enableLocalMode();
+            }
+        }
+
+        async function treteTeamBei() {
+            const input = document.getElementById('joinTeamCodeInput');
+            const code = input.value.trim().toUpperCase();
+            if (!code) return;
+
+            const found = teams.find(t => t.code === code);
+            if (found) {
+                handleWorkspaceSelectChange(found.id);
+                input.value = '';
+                schließeTeamModal();
+            } else {
+                showToast("Team-Code nicht gefunden", "error");
+            }
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-theme');
+        }
+
+        function toggleAiModal() {
+            showToast("AI Advisor Analyse gestartet...", "info");
+        }
+
+        function toggleVerlauf() {
+            showToast("Verlauf ist aktuell auf dem neuesten Stand", "info");
+        }
+
+        // Toast Helper
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            const bgClass = type === 'success' ? 'bg-emerald-950 border-emerald-500/40 text-emerald-300' :
+                            type === 'error' ? 'bg-rose-950 border-rose-500/40 text-rose-300' :
+                            'bg-slate-900 border-cyan-500/40 text-cyan-300';
+
+            toast.className = `px-4 py-2.5 rounded-xl border text-xs font-mono font-bold shadow-xl transition-all duration-300 transform translate-y-2 pointer-events-auto flex items-center gap-2 ${bgClass}`;
+            toast.innerHTML = `<span>${message}</span>`;
+
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Initialize Canvas Background
+        function initBackground() {
+            const canvas = document.getElementById('bgCanvas');
+            const ctx = canvas.getContext('2d');
+            let width = canvas.width = window.innerWidth;
+            let height = canvas.height = window.innerHeight;
+
+            window.addEventListener('resize', () => {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+            });
+
+            const particles = Array.from({ length: 25 }, () => ({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                vx: (Math.random() - 0.5) * 0.4,
+                vy: (Math.random() - 0.5) * 0.4,
+                radius: Math.random() * 1.5 + 1
+            }));
+
+            function animate() {
+                ctx.clearRect(0, 0, width, height);
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.3)';
+
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+
+                    if (p.x < 0 || p.x > width) p.vx *= -1;
+                    if (p.y < 0 || p.y > height) p.vy *= -1;
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        // On Load Entry Point
+        window.onload = function() {
+            initBackground();
+            initFirebase();
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>
